@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工作日誌管理系統 - Premium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        :root {
+            --primary: #2563eb;
+            --primary-light: #dbeafe;
+            --accent: #f59e0b;
+        }
+
+        body { 
+            font-family: 'Inter', 'Noto Sans TC', sans-serif; 
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+        }
+
+        .input-group:focus-within label {
+            color: var(--primary);
+        }
+
+        /* 修正跑版的核心樣式 */
+        input, select, textarea {
+            width: 100%; /* 強制滿寬防止跑版 */
+            background: rgba(248, 250, 252, 0.8);
+            border: 1.5px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: block;
+        }
+
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .tab-btn {
+            position: relative;
+            padding-bottom: 0.75rem;
+            color: #64748b;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            font-weight: 700;
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary);
+            border-radius: 99px;
+            animation: tab-slide 0.3s ease;
+        }
+
+        @keyframes tab-slide {
+            from { width: 0; opacity: 0; }
+            to { width: 100%; opacity: 1; }
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px -4px rgba(37, 99, 235, 0.4);
+        }
+
+        .preview-content {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 lg:p-10">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header Section -->
+        <header class="mb-10 flex flex-col items-center">
+            <div class="bg-blue-600 p-3 rounded-2xl shadow-xl mb-4">
+                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+            </div>
+            <h1 class="text-3xl md:text-4xl font-black text-slate-800 tracking-tight text-center">工作日誌管理系統</h1>
+            <p class="text-slate-500 mt-2 font-medium">高效管理、精準統計、即時同步</p>
+            
+            <nav class="flex mt-8 space-x-12 border-b border-slate-200 w-full max-w-md justify-center">
+                <button onclick="switchTab('input')" id="tab-input" class="tab-btn active text-lg">日誌編寫</button>
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn text-lg">數據中心</button>
+            </nav>
+        </header>
+
+        <!-- 頁面 1: 日誌輸入 -->
+        <main id="page-input" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <!-- Form Section -->
+            <section class="lg:col-span-6 xl:col-span-5 w-full">
+                <form id="workLogForm" class="glass-panel p-6 md:p-8 space-y-5">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-xl md:text-2xl font-bold text-slate-800">新日誌紀錄</h2>
+                        <span class="px-2 py-1 bg-blue-50 text-blue-600 text-[10px] font-bold rounded-full uppercase tracking-wider">Cloud Ready</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label class="block mb-1.5 text-sm font-bold text-slate-600">院區</label>
+                            <select id="campus" required>
+                                <option value="">請選擇</option>
+                                <option value="永康">🏥 永康</option>
+                                <option value="柳營">🏥 柳營</option>
+                                <option value="佳里">🏥 佳里</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label class="block mb-1.5 text-sm font-bold text-slate-600">反應單位</label>
+                            <select id="department" required>
+                                <option value="">請選擇</option>
+                                <option value="護理部">護理部</option>
+                                <option value="開刀房">開刀房</option>
+                                <option value="出院準備">出院準備</option>
+                                <option value="營養科">營養科</option>
+                                <option value="慢管中心">慢管中心</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label class="block mb-1.5 text-sm font-bold text-slate-600">申請單號</label>
+                            <input type="text" id="orderNo" placeholder="如：ORD101">
+                        </div>
+                        <div class="input-group">
+                            <label class="block mb-1.5 text-sm font-bold text-slate-600">反應人員</label>
+                            <input type="text" id="staffName" required placeholder="您的姓名">
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="block mb-1.5 text-sm font-bold text-slate-600">相關程式</label>
+                        <select id="program">
+                            <option value="">請選擇相關系統程式</option>
+                            <option value="ipo88100[護理病歷瀏覽]">ipo88100[護理病歷瀏覽]</option>
+                            <option value="sugar[糖尿病品質方案照護]">sugar[糖尿病品質方案照護]</option>
+                            <option value="opd734b[pre-ESRD個案管理]">opd734b[pre-ESRD個案管理]</option>
+                            <option value="inh0640[住出院飲食查詢]">inh0640[住出院飲食查詢]</option>
+                        </select>
+                    </div>
+
+                    <div class="p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="input-group">
+                                <label class="text-xs font-bold text-slate-400 mb-1 block">病歷號</label>
+                                <input type="text" id="chartNo" class="bg-white" placeholder="病歷編號">
+                            </div>
+                            <div class="input-group">
+                                <label class="text-xs font-bold text-slate-400 mb-1 block">病人姓名</label>
+                                <input type="text" id="patientName" class="bg-white" placeholder="病患姓名">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label class="block mb-1.5 text-sm font-bold text-blue-700">問題描述</label>
+                            <textarea id="desc_problem" rows="3" placeholder="詳細描述發生的問題與流程..."></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label class="block mb-1.5 text-sm font-bold text-emerald-700">處理結果</label>
+                            <textarea id="desc_result" rows="2" placeholder="目前進度或最終處理結果..."></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn-primary w-full text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 disabled:opacity-50 flex items-center justify-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                        <span>儲存日誌</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Preview Section -->
+            <section class="lg:col-span-6 xl:col-span-7 space-y-6">
+                <div class="glass-panel p-6 md:p-8 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-6 relative">
+                        <h2 class="text-lg font-bold text-amber-900 flex items-center">
+                            <span class="w-1.5 h-5 bg-amber-500 rounded-full mr-3"></span>
+                            內容即時預覽
+                        </h2>
+                        <button onclick="copyPreview()" class="bg-amber-100 text-amber-700 font-bold px-4 py-1.5 rounded-lg text-xs hover:bg-amber-200 transition-colors">
+                            複製內容
+                        </button>
+                    </div>
+                    <div class="preview-content bg-white p-6 rounded-xl border border-amber-100 min-h-[200px] shadow-inner text-slate-700 text-sm leading-relaxed">
+                        <div id="textPreview" class="whitespace-pre-wrap font-mono"></div>
+                    </div>
+                </div>
+
+                <!-- 最近紀錄 -->
+                <div class="glass-panel p-6 overflow-hidden">
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <h2 class="text-lg font-bold text-slate-800">最近處理紀錄</h2>
+                        <button onclick="exportToCSV()" class="text-blue-600 text-xs font-bold hover:underline">匯出 CSV</button>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-100">
+                        <table class="w-full text-sm">
+                            <thead class="bg-slate-50 text-slate-400 text-xs uppercase">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">時間</th>
+                                    <th class="px-4 py-3 text-left">單位</th>
+                                    <th class="px-4 py-3 text-left">人員</th>
+                                    <th class="px-4 py-3 text-right"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="logList" class="divide-y divide-slate-100 bg-white">
+                                <!-- Data rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 頁面 2: 儀表板 (保持不變但優化佈局) -->
+        <main id="page-dashboard" class="hidden animate-in fade-in duration-500">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+                <h2 class="text-2xl font-bold text-slate-800">數據分析中心</h2>
+                <button onclick="fetchLatestData()" class="px-5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm font-bold text-sm text-slate-600 hover:bg-slate-50 flex items-center transition-all">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    刷新雲端數據
+                </button>
+            </div>
+
+            <!-- KPI Row -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div class="glass-panel p-5 border-l-4 border-blue-500">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">累積日誌</p>
+                    <h3 id="dash-total" class="text-3xl font-black text-slate-800 mt-1">0</h3>
+                </div>
+                <div class="glass-panel p-5 border-l-4 border-emerald-500">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">今日新增</p>
+                    <h3 id="dash-today" class="text-3xl font-black text-slate-800 mt-1">0</h3>
+                </div>
+                <div class="glass-panel p-5 border-l-4 border-amber-500">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">熱門院區</p>
+                    <h3 id="dash-peak-campus" class="text-xl font-bold text-slate-700 mt-2">--</h3>
+                </div>
+                <div class="glass-panel p-5 border-l-4 border-purple-500">
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">主要單位</p>
+                    <h3 id="dash-peak-dept" class="text-xl font-bold text-slate-700 mt-2 truncate">--</h3>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="glass-panel p-6 h-[400px] flex flex-col">
+                    <h4 class="text-sm font-bold text-slate-800 mb-6 flex items-center">院區佔比分析</h4>
+                    <div class="flex-grow relative"><canvas id="chartCampus"></canvas></div>
+                </div>
+                <div class="glass-panel p-6 h-[400px] flex flex-col">
+                    <h4 class="text-sm font-bold text-slate-800 mb-6 flex items-center">反應單位分布</h4>
+                    <div class="flex-grow relative"><canvas id="chartDept"></canvas></div>
+                </div>
+                <div class="glass-panel p-6 h-[450px] lg:col-span-2 flex flex-col">
+                    <h4 class="text-sm font-bold text-slate-800 mb-6 flex items-center">人員工作負荷排行</h4>
+                    <div class="flex-grow relative"><canvas id="chartStaff"></canvas></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading & Notification UI 同上版本 -->
+    <div id="loading" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[100] hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center">
+            <div class="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <p class="mt-4 font-bold text-slate-700">同步中...</p>
+        </div>
+    </div>
+
+    <div id="notification" class="fixed top-6 left-1/2 -translate-x-1/2 hidden z-[110] transform transition-all">
+        <div class="bg-slate-800 text-white px-6 py-3 rounded-xl shadow-xl font-bold flex items-center space-x-2">
+            <span id="notif-icon"></span>
+            <span id="notif-text"></span>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyl3vNhh_Uo6D2kSwoE47cFjMBrPmQlc5k_JyK4rL3Xb-YYF1ySBWx2qkevXLZMAdJGgw/exec";
+        let logs = JSON.parse(localStorage.getItem('workLogs_v4')) || [];
+        let charts = {};
+
+        function switchTab(tab) {
+            const isInput = tab === 'input';
+            document.getElementById('page-input').classList.toggle('hidden', !isInput);
+            document.getElementById('page-dashboard').classList.toggle('hidden', isInput);
+            document.getElementById('tab-input').classList.toggle('active', isInput);
+            document.getElementById('tab-dashboard').classList.toggle('active', !isInput);
+            if (!isInput) fetchLatestData();
+        }
+
+        async function fetchLatestData() {
+            const loader = document.getElementById('loading');
+            loader.classList.remove('hidden');
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getData`);
+                const data = await response.json();
+                if (data && Array.isArray(data)) {
+                    logs = data;
+                    localStorage.setItem('workLogs_v4', JSON.stringify(logs));
+                    updateDashboardUI();
+                    renderLogList();
+                }
+            } catch (err) {
+                console.warn('Using cache');
+                updateDashboardUI();
+            } finally {
+                setTimeout(() => loader.classList.add('hidden'), 500);
+            }
+        }
+
+        const form = document.getElementById('workLogForm');
+        form.addEventListener('input', updatePreview);
+
+        function updatePreview() {
+            const d = {
+                campus: document.getElementById('campus').value,
+                dept: document.getElementById('department').value,
+                staff: document.getElementById('staffName').value,
+                prog: document.getElementById('program').value,
+                prob: document.getElementById('desc_problem').value,
+                res: document.getElementById('desc_result').value
+            };
+            
+            const preview = `📝 【工作日誌摘要】\n` +
+                            `📍 院區單位：${d.campus || '--'} / ${d.dept || '--'}\n` +
+                            `👤 處理人員：${d.staff || '--'}\n` +
+                            `💻 相關系統：${d.prog || '--'}\n\n` +
+                            `[問題描述]：\n${d.prob || '請填寫描述...'}\n\n` +
+                            `[處理結果]：\n${d.res || '進行中...'}`;
+            
+            document.getElementById('textPreview').innerText = preview;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="animate-pulse">上傳中...</span>`;
+
+            const payload = {
+                campus: document.getElementById('campus').value,
+                department: document.getElementById('department').value,
+                orderNo: document.getElementById('orderNo').value,
+                staffName: document.getElementById('staffName').value,
+                program: document.getElementById('program').value,
+                chartNo: document.getElementById('chartNo').value,
+                patientName: document.getElementById('patientName').value,
+                desc_problem: document.getElementById('desc_problem').value,
+                desc_result: document.getElementById('desc_result').value,
+                timestamp: new Date().toISOString()
+            };
+
+            try {
+                await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                const newEntry = { ...payload, dateStr: new Date().toLocaleString(), id: Date.now() };
+                logs.unshift(newEntry);
+                localStorage.setItem('workLogs_v4', JSON.stringify(logs));
+                
+                showNotification('✅ 已儲存');
+                form.reset();
+                renderLogList();
+                updatePreview();
+            } catch (err) {
+                showNotification('❌ 連線錯誤', true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<span>儲存日誌</span>`;
+            }
+        });
+
+        function updateDashboardUI() {
+            const total = logs.length;
+            const todayStr = new Date().toLocaleDateString();
+            const todayLogs = logs.filter(l => new Date(l.timestamp || l.dateStr).toLocaleDateString() === todayStr).length;
+
+            document.getElementById('dash-total').innerText = total;
+            document.getElementById('dash-today').innerText = todayLogs;
+
+            if (total === 0) return;
+
+            const counts = { campus: {}, dept: {}, staff: {} };
+            logs.forEach(l => {
+                counts.campus[l.campus] = (counts.campus[l.campus] || 0) + 1;
+                counts.dept[l.department] = (counts.dept[l.department] || 0) + 1;
+                counts.staff[l.staffName] = (counts.staff[l.staffName] || 0) + 1;
+            });
+
+            document.getElementById('dash-peak-campus').innerText = Object.entries(counts.campus).sort((a,b)=>b[1]-a[1])[0]?.[0] || '--';
+            document.getElementById('dash-peak-dept').innerText = Object.entries(counts.dept).sort((a,b)=>b[1]-a[1])[0]?.[0] || '--';
+
+            initChart('chartCampus', 'pie', Object.keys(counts.campus), Object.values(counts.campus), ['#3b82f6', '#f59e0b', '#10b981', '#ef4444']);
+            initChart('chartDept', 'doughnut', Object.keys(counts.dept), Object.values(counts.dept), ['#8b5cf6', '#ec4899', '#f97316', '#06b6d4', '#64748b']);
+            const sortedStaff = Object.entries(counts.staff).sort((a,b)=>b[1]-a[1]).slice(0, 10);
+            initChart('chartStaff', 'bar', sortedStaff.map(s => s[0]), sortedStaff.map(s => s[1]), '#3b82f6');
+        }
+
+        function initChart(id, type, labels, data, colors) {
+            if (charts[id]) charts[id].destroy();
+            const ctx = document.getElementById(id).getContext('2d');
+            charts[id] = new Chart(ctx, {
+                type: type,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderColor: 'white',
+                        borderWidth: 2,
+                        borderRadius: type === 'bar' ? 6 : 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: type !== 'bar', position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+                }
+            });
+        }
+
+        function renderLogList() {
+            const container = document.getElementById('logList');
+            container.innerHTML = logs.slice(0, 5).map(l => `
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-4 py-3 text-[10px] text-slate-400 font-medium">${new Date(l.timestamp || l.dateStr).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                    <td class="px-4 py-3">
+                        <div class="font-bold text-slate-700 text-xs">${l.campus}</div>
+                        <div class="text-[9px] text-slate-400">${l.department}</div>
+                    </td>
+                    <td class="px-4 py-3 text-slate-600 text-xs">${l.staffName}</td>
+                    <td class="px-4 py-3 text-right">
+                        <button class="text-slate-300 hover:text-red-500 transition-colors">🗑️</button>
+                    </td>
+                </tr>
+            `).join('') || '<tr><td colspan="4" class="py-10 text-center text-slate-300 italic">尚未有紀錄</td></tr>';
+        }
+
+        function showNotification(msg, isError = false) {
+            const n = document.getElementById('notification');
+            const text = document.getElementById('notif-text');
+            text.innerText = msg;
+            n.classList.remove('hidden');
+            setTimeout(() => n.classList.add('hidden'), 3000);
+        }
+
+        function copyPreview() {
+            const text = document.getElementById('textPreview').innerText;
+            navigator.clipboard.writeText(text);
+            showNotification('📋 已複製');
+        }
+
+        function exportToCSV() {
+            if (logs.length === 0) return;
+            let csv = "\uFEFF時間,院區,單位,單號,人員,程式,病歷號,姓名,問題描述,結果\n";
+            logs.forEach(l => {
+                csv += `"${l.timestamp || l.dateStr}","${l.campus}","${l.department}","${l.orderNo}","${l.staffName}","${l.program}","${l.chartNo}","${l.patientName}","${l.desc_problem.replace(/\n/g, ' ')}","${l.desc_result.replace(/\n/g, ' ')}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `WorkLog_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        renderLogList();
+        updatePreview();
+        updateDashboardUI();
+    </script>
+</body>
+</html>
